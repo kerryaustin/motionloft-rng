@@ -9,4 +9,11 @@ If you would like to see my logic in another language such as I python I am more
 Make sure you have ruby >= 2.0 installed
 
 ## Running
-`$ ruby random_count_generator.rb`
+Call on the command line with two optional arguments
+- history_limit:integer (default: 100)
+- iterations:integer (default: history_limit value)
+
+Iterations is the number of times the program will call the generator method. Setting this value as greater than `history_limit` will validate whether `history_limit` is working.
+
+Ex:
+`$ ruby random_count_generator.rb 200 300`
