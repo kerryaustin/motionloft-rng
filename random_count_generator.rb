@@ -1,11 +1,22 @@
 require 'date'
 
+class WriteQueue
+  @@queue = []
+
+  def self.add_to_queue(value)
+    @@queue.unshift({ timestamp: DateTime.now.iso8601, value: value })
+  end
+
+  def self.next
+    @@queue.pop
+  end
+end
+
 class RandomNumberGenerator
 
   def initialize(
     probabilities: [[1, 0.5], [2, 0.25], [3, 0.15], [4, 0.05], [5, 0.05]],
-    history_limit: 100,
-    filename: 'out.txt'
+    history_limit: 100
   )
     # Make sure history limit is a positive integer
     unless history_limit.is_a?(Integer) && history_limit > 0
@@ -20,7 +31,6 @@ class RandomNumberGenerator
     # Setup history
     @history = []
     @history_limit = history_limit
-    @filename = filename
   end
 
   def add_to_history(val)
@@ -35,6 +45,7 @@ class RandomNumberGenerator
   def generate_random_number
     val = @value_list.sample
     add_to_history(val)
+    WriteQueue.add_to_queue(val)
   end
 
   def get_frequencies
@@ -44,20 +55,34 @@ class RandomNumberGenerator
     puts grouped.keys.sort.map { |x| { value: x, frequency: grouped[x].length.to_f / @history.length } }
   end
 
-  def write_output
-    File.open(@filename, 'w') { |file| file.write("#{DateTime.now.iso8601}: #{@history[0][:value]}") }
-  end
-
 end
 
+def start_writer
+  Thread.new {
+    done = false
+    while !done do
+      next_value = WriteQueue.next
+      unless next_value.nil?
+        puts "writing value"
+        File.open('out.txt', 'a') { |file| file.write("#{next_value[:timestamp]}: #{next_value[:value]}\n") }
+      end
+      sleep(1)
+    end
+  }
+end
+
+
+
+write_thread = start_writer
 
 limit = ARGV[0] && ARGV[0].to_i || 100
 iterations = ARGV[1] && ARGV[1].to_i || limit
 
 puts "Running with limit = #{limit} and #{iterations} iterations"
 rng = RandomNumberGenerator.new(history_limit: limit)
-(0..iterations).each do
+(1..iterations).each do
   rng.generate_random_number
+  sleep(rand(0..3))
 end
 
-rng.write_output
+write_thread.join
