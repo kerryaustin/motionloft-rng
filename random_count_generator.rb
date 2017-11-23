@@ -1,8 +1,11 @@
+require 'date'
+
 class RandomNumberGenerator
 
   def initialize(
     probabilities: [[1, 0.5], [2, 0.25], [3, 0.15], [4, 0.05], [5, 0.05]],
-    history_limit: 100
+    history_limit: 100,
+    filename: 'out.txt'
   )
     # Make sure history limit is a positive integer
     unless history_limit.is_a?(Integer) && history_limit > 0
@@ -17,6 +20,7 @@ class RandomNumberGenerator
     # Setup history
     @history = []
     @history_limit = history_limit
+    @filename = filename
   end
 
   def add_to_history(val)
@@ -40,6 +44,10 @@ class RandomNumberGenerator
     puts grouped.keys.sort.map { |x| { value: x, frequency: grouped[x].length.to_f / @history.length } }
   end
 
+  def write_output
+    File.open(@filename, 'w') { |file| file.write("#{DateTime.now.iso8601}: #{@history[0][:value]}") }
+  end
+
 end
 
 
@@ -52,4 +60,4 @@ rng = RandomNumberGenerator.new(history_limit: limit)
   rng.generate_random_number
 end
 
-rng.get_frequencies
+rng.write_output
