@@ -43,9 +43,12 @@ class RandomNumberGenerator
   end
 
   def generate_random_number
+    # Get value
     val = @value_list.sample
+    # Add to history
     add_to_history(val)
-    WriteQueue.add_to_queue(val)
+    # Return value
+    val
   end
 
   def get_frequencies
@@ -57,32 +60,62 @@ class RandomNumberGenerator
 
 end
 
+# Most of this code is just to log to std out so we know its working.
 def start_writer
   Thread.new {
     done = false
+    waiting = false
     while !done do
       next_value = WriteQueue.next
       unless next_value.nil?
-        puts "writing value"
+        waiting = false
+        puts "\n"
+        puts "Writer: writing #{next_value}"
+        # Append value to file
         File.open('out.txt', 'a') { |file| file.write("#{next_value[:timestamp]}: #{next_value[:value]}\n") }
+      else
+        unless waiting
+          puts "\n"
+          print "Writer: waiting"
+          waiting = true
+        else
+          print "."
+          sleep(1)
+        end
       end
-      sleep(1)
     end
   }
 end
 
-
-
-write_thread = start_writer
-
 limit = ARGV[0] && ARGV[0].to_i || 100
 iterations = ARGV[1] && ARGV[1].to_i || limit
 
-puts "Running with limit = #{limit} and #{iterations} iterations"
-rng = RandomNumberGenerator.new(history_limit: limit)
-(1..iterations).each do
-  rng.generate_random_number
-  sleep(rand(0..3))
+
+# Create 5 workers generating numbers
+workers = []
+(1..5).each do |i|
+  t = Thread.new {
+    puts "\n"
+    puts "Worker #{i}: Running with limit = #{limit} and #{iterations} iterations"
+    rng = RandomNumberGenerator.new(history_limit: limit)
+    (1..iterations).each do
+      # Sleep randomly so that not all values are generated instantaneously
+      sleep(rand(0..10))
+      val = rng.generate_random_number
+      puts "\n"
+      puts "Worker #{i}: Generated value #{val}"
+      # Add to queue
+      WriteQueue.add_to_queue(val)
+    end
+  }
+  workers.push(t)
 end
 
+# Start write thread
+write_thread = start_writer
+
+# Wait for workers to finish
+workers.each { |t| t.join }
+
+# We want the the write thread to continue, ctrl + c to stop
 write_thread.join
